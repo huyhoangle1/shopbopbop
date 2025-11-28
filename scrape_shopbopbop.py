@@ -120,7 +120,7 @@ class ShopBopBopScraper:
         
         # Lấy trang login để lấy CSRF token nếu có
         try:
-            response = self.session.get(login_url, timeout=15, verify=False)
+            response = self.session.get(login_url, timeout=10, verify=False)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, 'html.parser')
             
@@ -181,7 +181,7 @@ class ShopBopBopScraper:
                     headers['X-XSRF-TOKEN'] = csrf_token
                 
                 # Gửi request đăng nhập
-                response = self.session.post(login_post_url, data=login_data, headers=headers, allow_redirects=True, timeout=15, verify=False)
+                response = self.session.post(login_post_url, data=login_data, headers=headers, allow_redirects=True, timeout=10, verify=False)
                 
                 # Kiểm tra xem đăng nhập có thành công không
                 if response.status_code == 200:
@@ -206,7 +206,7 @@ class ShopBopBopScraper:
                     print("✗ Lỗi 419: CSRF token không hợp lệ hoặc đã hết hạn")
                     print("   Đang thử lại với token mới...")
                     # Thử lại một lần nữa với token mới
-                    time.sleep(1)
+                    time.sleep(0.5)  # Giảm từ 1 giây xuống 0.5 giây
                     return self.login(username, password)
                 else:
                     print(f"✗ Lỗi khi đăng nhập: Status code {response.status_code}")
@@ -230,7 +230,7 @@ class ShopBopBopScraper:
                 if csrf_token:
                     headers['X-CSRF-TOKEN'] = csrf_token
                 
-                response = self.session.post(login_url, data=login_data, headers=headers, allow_redirects=True, timeout=15, verify=False)
+                response = self.session.post(login_url, data=login_data, headers=headers, allow_redirects=True, timeout=10, verify=False)
                 if response.status_code == 200 and 'login' not in response.url.lower():
                     print("✓ Đăng nhập thành công!")
                     return True
@@ -258,19 +258,10 @@ class ShopBopBopScraper:
     
     def visit_home(self):
         """
-        Truy cập trang chủ
+        Truy cập trang chủ (đã bỏ qua để tăng tốc)
         """
-        print("Đang truy cập trang chủ...")
-        home_url = f"{self.base_url}/home"
-        try:
-            response = self.session.get(home_url, timeout=15, verify=False)
-            response.raise_for_status()
-            print("✓ Đã truy cập trang chủ thành công!")
-            time.sleep(1)  # Đợi một chút để đảm bảo session được cập nhật
-            return True
-        except requests.exceptions.RequestException as e:
-            print(f"✗ Lỗi khi truy cập trang chủ: {e}")
-            return False
+        # Bỏ qua bước này để tăng tốc độ
+        return True
     
     def _parse_account_data(self, text_content):
         """
@@ -330,7 +321,7 @@ class ShopBopBopScraper:
         """
         print(f"Đang lấy dữ liệu từ {page_name}...")
         try:
-            response = self.session.get(url, timeout=15, verify=False)
+            response = self.session.get(url, timeout=10, verify=False)
             response.raise_for_status()
             
             soup = BeautifulSoup(response.text, 'html.parser')
@@ -422,7 +413,7 @@ class ShopBopBopScraper:
         print(f"  Đang lấy chi tiết đơn hàng {order_code}...")
         
         try:
-            response = self.session.get(detail_url, timeout=15, verify=False)
+            response = self.session.get(detail_url, timeout=10, verify=False)
             response.raise_for_status()
             
             soup = BeautifulSoup(response.text, 'html.parser')
@@ -559,32 +550,28 @@ class ShopBopBopScraper:
     
     def scrape_all(self, username, password):
         """
-        Thực hiện toàn bộ quy trình: login -> home -> scrape 2 trang
+        Thực hiện toàn bộ quy trình: login -> scrape 2 trang -> lấy chi tiết (tối ưu tốc độ)
         """
         # Bước 1: Đăng nhập
         if not self.login(username, password):
             print("Không thể đăng nhập. Dừng quy trình.")
             return False
         
-        time.sleep(2)
+        time.sleep(0.5)  # Giảm từ 2 giây xuống 0.5 giây
         
-        # Bước 2: Truy cập trang chủ
-        if not self.visit_home():
-            print("Cảnh báo: Không thể truy cập trang chủ, nhưng vẫn tiếp tục...")
-        
-        time.sleep(2)
+        # Bước 2: Bỏ qua trang chủ để tăng tốc
         
         # Bước 3: Lấy dữ liệu từ trang accounts
         accounts_url = f"{self.base_url}/account/orders/accounts"
         self.data['accounts'] = self.scrape_accounts_page(accounts_url, "accounts")
         
-        time.sleep(2)
+        time.sleep(0.5)  # Giảm từ 2 giây xuống 0.5 giây
         
         # Bước 4: Lấy dữ liệu từ trang accounts-v2
         accounts_v2_url = f"{self.base_url}/account/orders/accounts-v2"
         self.data['accounts_v2'] = self.scrape_accounts_page(accounts_v2_url, "accounts-v2")
         
-        time.sleep(2)
+        time.sleep(0.5)  # Giảm từ 2 giây xuống 0.5 giây
         
         # Bước 5: Lấy chi tiết từng đơn hàng nếu có dữ liệu
         print("\nĐang lấy chi tiết từng đơn hàng...")
@@ -597,10 +584,10 @@ class ShopBopBopScraper:
                 if 'ma_don' in account and account['ma_don']:
                     detail = self.scrape_order_detail(account['ma_don'], 'accounts')
                     if detail:
-                        detail['account_info'] = account  # Gắn thông tin account vào detail
+                        detail['account_info'] = account
                         self.data['account_details'].append(detail)
                         detail_count += 1
-                    time.sleep(1)  # Đợi giữa các request
+                    time.sleep(0.3)  # Giảm từ 1 giây xuống 0.3 giây
         
         # Xử lý accounts_v2
         if self.data['accounts_v2'] and len(self.data['accounts_v2']) > 0:
@@ -609,10 +596,10 @@ class ShopBopBopScraper:
                 if 'ma_don' in account and account['ma_don']:
                     detail = self.scrape_order_detail(account['ma_don'], 'accounts-v2')
                     if detail:
-                        detail['account_info'] = account  # Gắn thông tin account vào detail
+                        detail['account_info'] = account
                         self.data['account_details'].append(detail)
                         detail_count += 1
-                    time.sleep(1)  # Đợi giữa các request
+                    time.sleep(0.3)  # Giảm từ 1 giây xuống 0.3 giây
         
         if detail_count > 0:
             print(f"\n✓ Đã lấy chi tiết {detail_count} đơn hàng")
@@ -713,7 +700,10 @@ def main():
         # Chế độ tự động tạo và đăng nhập tuần tự
         sys.stdout.flush()
         try:
-            base_name = input("Nhập từ khóa để tạo tài khoản (ví dụ: hoang): ").strip()
+            print("\nNhập các từ khóa để tạo tài khoản (phân tách bằng dấu phẩy hoặc xuống dòng)")
+            print("Ví dụ: hoang, hieu, minh")
+            print("Hoặc nhập từng tên trên mỗi dòng (kết thúc bằng dòng trống)")
+            base_names_input = input("Nhập: ").strip()
         except (EOFError, KeyboardInterrupt):
             print("\n\nĐã hủy!")
             return
@@ -721,13 +711,29 @@ def main():
             print(f"\n✗ Lỗi khi nhập: {e}")
             return
         
-        if not base_name:
+        if not base_names_input:
             print("✗ Từ khóa không được để trống!")
             return
         
-        print(f"\nĐang tạo danh sách tài khoản từ '{base_name}'...")
-        account_list = generate_accounts(base_name)
-        print(f"✓ Đã tạo {len(account_list)} tài khoản")
+        # Parse danh sách tên (hỗ trợ cả dấu phẩy và xuống dòng)
+        base_names = []
+        if ',' in base_names_input:
+            # Phân tách bằng dấu phẩy
+            base_names = [name.strip() for name in base_names_input.split(',') if name.strip()]
+        else:
+            # Chỉ có 1 tên
+            base_names = [base_names_input.strip()]
+        
+        # Tạo danh sách tài khoản cho tất cả các tên
+        account_list = []
+        print(f"\nĐang tạo danh sách tài khoản từ {len(base_names)} tên...")
+        for base_name in base_names:
+            if base_name:
+                accounts = generate_accounts(base_name)
+                account_list.extend(accounts)
+                print(f"  ✓ Đã tạo {len(accounts)} tài khoản từ '{base_name}'")
+        
+        print(f"\n✓ Tổng cộng đã tạo {len(account_list)} tài khoản")
         
         # Tạo scraper
         scraper = ShopBopBopScraper()
@@ -772,19 +778,26 @@ def main():
                 fail_count += 1
                 print(f"✗ Thất bại: {username}")
             
-            # Đợi một chút giữa các request
+            # Đợi một chút giữa các request (giảm để tăng tốc)
             if i < len(account_list):
-                time.sleep(2)
+                time.sleep(0.5)  # Giảm từ 2 giây xuống 0.5 giây
         
         # Lưu tất cả kết quả
         output_data = {
+            'base_names': base_names,
             'total_accounts': len(account_list),
             'success_count': success_count,
             'fail_count': fail_count,
             'results': all_results
         }
         
-        output_file = f'shopbopbop_all_accounts_{base_name}.json'
+        # Tạo tên file từ danh sách tên
+        if len(base_names) == 1:
+            output_file = f'shopbopbop_all_accounts_{base_names[0]}.json'
+        else:
+            # Nếu nhiều tên, dùng tên đầu tiên và thêm _multi
+            output_file = f'shopbopbop_all_accounts_{base_names[0]}_multi.json'
+        
         print(f"\nĐang lưu tất cả kết quả vào {output_file}...")
         try:
             with open(output_file, 'w', encoding='utf-8') as f:
