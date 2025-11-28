@@ -1,0 +1,49 @@
+{
+  "accounts": [],
+  "accounts_v2": [
+    {
+      "ma_so": "#49000",
+      "ma_don": "Y2-TSMYCDXL",
+      "gia": "49.000 ₫",
+      "tai_khoan": "closeheart.5867",
+      "ngay_mua": "2025-08-30 13:00:46"
+    },
+    {
+      "ma_so": "#49000",
+      "ma_don": "Y2-UMCS7UPC",
+      "gia": "49.000 ₫",
+      "tai_khoan": "ahuec.8521",
+      "ngay_mua": "2025-08-30 12:49:43"
+    }
+  ],
+  "account_details": [
+    {
+      "ma_don": "Y2-TSMYCDXL",
+      "loai": "accounts-v2",
+      "url": "https://shopbopbop.vn/account/orders/accounts-v2/Y2-TSMYCDXL",
+      "tai_khoan": "closeheart.5867",
+      "mat_khau": "Gv7bOgrhak",
+      "account_info": {
+        "ma_so": "#49000",
+        "ma_don": "Y2-TSMYCDXL",
+        "gia": "49.000 ₫",
+        "tai_khoan": "closeheart.5867",
+        "ngay_mua": "2025-08-30 13:00:46"
+      }
+    },
+    {
+      "ma_don": "Y2-UMCS7UPC",
+      "loai": "accounts-v2",
+      "url": "https://shopbopbop.vn/account/orders/accounts-v2/Y2-UMCS7UPC",
+      "tai_khoan": "ahuec.8521",
+      "mat_khau": "hBsEJjJ65k",
+      "account_info": {
+        "ma_so": "#49000",
+        "ma_don": "Y2-UMCS7UPC",
+        "gia": "49.000 ₫",
+        "tai_khoan": "ahuec.8521",
+        "ngay_mua": "2025-08-30 12:49:43"
+      }
+    }
+  ]
+}
