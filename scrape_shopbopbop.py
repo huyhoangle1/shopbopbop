@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import json
 import time
+import os
 from urllib.parse import urljoin
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -735,8 +736,35 @@ def main():
         
         print(f"\n✓ Tổng cộng đã tạo {len(account_list)} tài khoản")
         
-        # Tạo scraper
-        scraper = ShopBopBopScraper()
+        # Chuẩn bị tên file output ngay từ đầu để lưu dần
+        if len(base_names) == 1:
+            output_file = f'shopbopbop_all_accounts_{base_names[0]}.json'
+        else:
+            output_file = f'shopbopbop_all_accounts_{base_names[0]}_multi.json'
+        print(f"File kết quả sẽ được lưu vào: {output_file}")
+        
+        # Hàm tiện ích để lưu tiến độ ngay sau mỗi tài khoản
+        def save_progress():
+            output_data = {
+                'base_names': base_names,
+                'total_accounts': len(account_list),
+                'success_count': success_count,
+                'fail_count': fail_count,
+                'results': all_results
+            }
+            
+            try:
+                with open(output_file, 'w', encoding='utf-8') as f:
+                    json.dump(output_data, f, ensure_ascii=False, indent=2)
+                total_accounts_found = 0
+                total_accounts_v2_found = 0
+                for result in all_results:
+                    total_accounts_found += len(result.get('accounts', []))
+                    total_accounts_v2_found += len(result.get('accounts_v2', []))
+                print(f"  -> Đã lưu tiến độ ({success_count} thành công, {fail_count} thất bại)")
+                print(f"     + accounts: {total_accounts_found} | accounts_v2: {total_accounts_v2_found}")
+            except Exception as e:
+                print(f"✗ Lỗi khi lưu file {output_file}: {e}")
         
         # Đăng nhập tuần tự với từng tài khoản
         print(f"\nBắt đầu đăng nhập tuần tự với {len(account_list)} tài khoản...")
@@ -757,14 +785,32 @@ def main():
             scraper = ShopBopBopScraper()
             
             if scraper.scrape_all(username, password):
-                # Lưu kết quả cho tài khoản này
-                result = {
+                # Giản lược dữ liệu ngay khi lưu kết quả
+                simplified = {
                     'username': username,
                     'password': password,
                     'status': 'success',
-                    'data': scraper.data.copy()
+                    'accounts': [],
+                    'accounts_v2': []
                 }
-                all_results.append(result)
+                
+                # Lấy tài khoản/mật khẩu từ account_details
+                if scraper.data.get('account_details'):
+                    for detail in scraper.data['account_details']:
+                        account_info = {
+                            'tai_khoan': detail.get('tai_khoan', ''),
+                            'mat_khau': detail.get('mat_khau', ''),
+                            'ma_don': detail.get('ma_don', '')
+                        }
+                        
+                        # Chỉ thêm nếu có tài khoản hoặc mật khẩu
+                        if account_info['tai_khoan'] or account_info['mat_khau']:
+                            if detail.get('loai') == 'accounts':
+                                simplified['accounts'].append(account_info)
+                            elif detail.get('loai') == 'accounts-v2':
+                                simplified['accounts_v2'].append(account_info)
+                
+                all_results.append(simplified)
                 success_count += 1
                 print(f"✓ Thành công: {username}")
             else:
@@ -772,39 +818,21 @@ def main():
                     'username': username,
                     'password': password,
                     'status': 'failed',
-                    'data': None
+                    'accounts': [],
+                    'accounts_v2': []
                 }
                 all_results.append(result)
                 fail_count += 1
                 print(f"✗ Thất bại: {username}")
             
+            # Lưu tiến độ ngay sau khi xử lý xong mỗi tài khoản
+            save_progress()
+            
             # Đợi một chút giữa các request (giảm để tăng tốc)
             if i < len(account_list):
                 time.sleep(0.5)  # Giảm từ 2 giây xuống 0.5 giây
         
-        # Lưu tất cả kết quả
-        output_data = {
-            'base_names': base_names,
-            'total_accounts': len(account_list),
-            'success_count': success_count,
-            'fail_count': fail_count,
-            'results': all_results
-        }
-        
-        # Tạo tên file từ danh sách tên
-        if len(base_names) == 1:
-            output_file = f'shopbopbop_all_accounts_{base_names[0]}.json'
-        else:
-            # Nếu nhiều tên, dùng tên đầu tiên và thêm _multi
-            output_file = f'shopbopbop_all_accounts_{base_names[0]}_multi.json'
-        
-        print(f"\nĐang lưu tất cả kết quả vào {output_file}...")
-        try:
-            with open(output_file, 'w', encoding='utf-8') as f:
-                json.dump(output_data, f, ensure_ascii=False, indent=2)
-            print(f"✓ Đã lưu kết quả vào {output_file}")
-        except Exception as e:
-            print(f"✗ Lỗi khi lưu file: {e}")
+        print(f"\n✓ Đã lưu đầy đủ dữ liệu vào {output_file}")
         
         print("\n" + "=" * 50)
         print("TỔNG KẾT")
@@ -813,7 +841,7 @@ def main():
         print(f"Thành công: {success_count}")
         print(f"Thất bại: {fail_count}")
         print("=" * 50)
-        
+    
     else:
         # Chế độ đăng nhập 1 tài khoản (mặc định)
         sys.stdout.flush()
@@ -836,7 +864,58 @@ def main():
         scraper = ShopBopBopScraper()
         
         if scraper.scrape_all(username, password):
-            scraper.save_to_json()
+            # Giản lược dữ liệu trước khi lưu
+            simplified = {
+                'username': username,
+                'password': password,
+                'status': 'success',
+                'accounts': [],
+                'accounts_v2': []
+            }
+            
+            # Lấy tài khoản/mật khẩu từ account_details
+            if scraper.data.get('account_details'):
+                for detail in scraper.data['account_details']:
+                    account_info = {
+                        'tai_khoan': detail.get('tai_khoan', ''),
+                        'mat_khau': detail.get('mat_khau', ''),
+                        'ma_don': detail.get('ma_don', '')
+                    }
+                    
+                    # Chỉ thêm nếu có tài khoản hoặc mật khẩu
+                    if account_info['tai_khoan'] or account_info['mat_khau']:
+                        if detail.get('loai') == 'accounts':
+                            simplified['accounts'].append(account_info)
+                        elif detail.get('loai') == 'accounts-v2':
+                            simplified['accounts_v2'].append(account_info)
+            
+            # Lưu dữ liệu đã giản lược
+            output_data = {
+                'username': username,
+                'password': password,
+                'status': 'success',
+                'accounts': simplified['accounts'],
+                'accounts_v2': simplified['accounts_v2']
+            }
+            
+            output_file = 'shopbopbop_data.json'
+            print(f"\nĐang lưu dữ liệu giản lược vào {output_file}...")
+            try:
+                with open(output_file, 'w', encoding='utf-8') as f:
+                    json.dump(output_data, f, ensure_ascii=False, indent=2)
+                print(f"✓ Đã lưu kết quả vào {output_file}")
+                
+                # Thống kê
+                total_accounts_found = len(simplified['accounts'])
+                total_accounts_v2_found = len(simplified['accounts_v2'])
+                
+                print(f"\nThống kê dữ liệu:")
+                print(f"  - Tài khoản từ accounts: {total_accounts_found}")
+                print(f"  - Tài khoản từ accounts_v2: {total_accounts_v2_found}")
+                
+            except Exception as e:
+                print(f"✗ Lỗi khi lưu file: {e}")
+            
             print("\n" + "=" * 50)
             print("HOÀN TẤT!")
             print("=" * 50)                                     
